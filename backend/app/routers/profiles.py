@@ -13,6 +13,7 @@ from ..database import get_db
 from ..models import User, Profile, UserRole, VerificationStatus, Review
 from ..schemas import ProfileResponse, ProfileUpdate
 from ..auth import get_current_user
+from ..storage import upload_file_to_storage
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
@@ -146,14 +147,11 @@ async def upload_avatar(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profil non trouvé.")
 
-    ext = os.path.splitext(file.filename)[1]
-    filename = f"avatar_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    content = await file.read()
+    content_type = file.content_type or "image/jpeg"
+    file_url = await upload_file_to_storage(content, file.filename or "avatar.jpg", content_type)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    profile.avatar_url = f"/uploads/{filename}"
+    profile.avatar_url = file_url
     await db.commit()
     await db.refresh(profile)
     return await enrich_profile(profile, db)
@@ -175,14 +173,11 @@ async def upload_verification_doc(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profil non trouvé.")
 
-    ext = os.path.splitext(file.filename)[1]
-    filename = f"doc_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    content = await file.read()
+    content_type = file.content_type or "application/pdf"
+    file_url = await upload_file_to_storage(content, file.filename or "doc.pdf", content_type)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    profile.verification_doc_url = f"/uploads/{filename}"
+    profile.verification_doc_url = file_url
     profile.verification_status = VerificationStatus.PENDING
     await db.commit()
     await db.refresh(profile)

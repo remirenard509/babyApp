@@ -188,7 +188,10 @@ async def init_db_and_seed():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_db_and_seed()
+    try:
+        await init_db_and_seed()
+    except Exception as e:
+        print(f"Avertissement DB lors du démarrage: {e}")
     yield
 
 app = FastAPI(
