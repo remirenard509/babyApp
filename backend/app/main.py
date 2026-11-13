@@ -224,5 +224,16 @@ app.include_router(admin.router)
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "app": "Babysitting MVP API"}
+    db_status = "unknown"
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(select(1))
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    return {
+        "status": "ok",
+        "app": "Babysitting MVP API",
+        "database": db_status
+    }
 

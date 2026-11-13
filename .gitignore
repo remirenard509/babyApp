@@ -1,0 +1,23 @@
+# Environnement et secrets
+.env
+.env.local
+.env.*.local
+
+# Dépendances et caches
+node_modules/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+env/
+venv/
+
+# Stockage local
+uploads/
+backend/uploads/
+
+# Vercel
+.vercel/
+

@@ -54,7 +54,11 @@ export const AuthPage: React.FC = () => {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Une erreur est survenue lors de l\'authentification.');
+      const msg = err.response?.data?.detail 
+        || (err.response?.status ? `Erreur ${err.response.status}: ${err.response.statusText}` : null)
+        || err.message 
+        || 'Une erreur est survenue lors de l\'authentification.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
