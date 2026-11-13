@@ -67,6 +67,16 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Recharger l'utilisateur avec son profil depuis la DB pour s'assurer
+    # que toutes les relations sont bien chargées (évite les lazy-load errors)
+    stmt = select(User).where(User.id == current_user.id).options(selectinload(User.profile))
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable.")
+    return user
 

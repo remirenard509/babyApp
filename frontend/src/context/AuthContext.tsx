@@ -22,10 +22,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.get<User>('/auth/me');
       setUser(res.data);
-    } catch {
-      localStorage.removeItem('token');
-      setToken(null);
-      setUser(null);
+    } catch (err: any) {
+      // On ne déconnecte que sur 401 (token expiré/invalide), pas sur 500 (erreur serveur)
+      if (err?.response?.status === 401) {
+        localStorage.removeItem('token');
+        setToken(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -46,6 +49,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.get<User>('/auth/me');
       setUser(res.data);
+    } catch (err) {
+      // /auth/me a échoué : on garde quand même le token valide
+      // et on recharge la page pour retenter proprement
+      console.error('Erreur /auth/me après login :', err);
     } finally {
       setLoading(false);
     }
