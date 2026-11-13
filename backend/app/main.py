@@ -230,15 +230,19 @@ app.include_router(admin.router)
 @app.get("/api/health")
 async def health_check():
     db_status = "unknown"
+    error_detail = None
     try:
         async with engine.connect() as conn:
             await conn.execute(select(1))
         db_status = "connected"
     except Exception as e:
-        db_status = f"error: {str(e)}"
+        db_status = "error"
+        error_detail = f"{type(e).__name__}: {str(e)}"
     return {
         "status": "ok",
         "app": "Babysitting MVP API",
-        "database": db_status
+        "database": db_status,
+        "database_error": error_detail,
+        "database_configured": bool(os.getenv("DATABASE_URL"))
     }
 
