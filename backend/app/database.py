@@ -1,47 +1,48 @@
 import os
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import DeclarativeBase
-
 import ssl
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@db:5432/babysitting_db"
 )
 
-# Correction pour les chaînes fournies par les hébergeurs (postgres:// ou postgresql:// -> postgresql+asyncpg://)
+# Correction automatique du schéma d'URL
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
 elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+asyncpg://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# asyncpg ne supporte pas "?sslmode=..." dans l'URL et plante s'il est présent.
-# On extrait les paramètres d'URL pour configurer SSL proprement via connect_args.
+# Détection env cloud (Vercel / Supabase) vs local Docker
+IS_CLOUD = "localhost" not in DATABASE_URL and "@db:" not in DATABASE_URL
+
 connect_args = {}
-if "localhost" not in DATABASE_URL and "@db:" not in DATABASE_URL:
+if IS_CLOUD:
     parsed = urlparse(DATABASE_URL)
     query_params = parse_qs(parsed.query)
-    
-    # Retirer les paramètres SSL de la query string pour éviter les conflits asyncpg
-    sslmode = query_params.pop("sslmode", [None])[0]
+    # Retirer sslmode et ssl de l'URL (asyncpg ne les supporte pas dans la query string)
+    query_params.pop("sslmode", None)
     query_params.pop("ssl", None)
-    
-    # Reconstruire l'URL propre sans sslmode
     clean_query = urlencode(query_params, doseq=True)
     DATABASE_URL = urlunparse(parsed._replace(query=clean_query))
-    
-    # Configurer le contexte SSL pour Supabase / Cloud DB
+    # Contexte SSL compatible Supabase
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = ssl_context
 
+# NullPool sur Vercel Serverless : chaque requête ouvre et ferme sa propre
+# connexion, ce qui évite les connexions "fantômes" périmées entre deux
+# cold-starts. En local Docker on garde le pool par défaut.
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
     future=True,
-    pool_pre_ping=True,
+    poolclass=NullPool if IS_CLOUD else None,
+    pool_pre_ping=not IS_CLOUD,   # inutile avec NullPool
     connect_args=connect_args
 )
 
