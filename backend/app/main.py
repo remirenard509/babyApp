@@ -192,10 +192,8 @@ async def init_db_and_seed():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    try:
-        await init_db_and_seed()
-    except Exception as e:
-        print(f"Avertissement DB lors du démarrage: {e}")
+    # Sur Vercel Serverless le lifespan n'est pas fiable entre cold-starts.
+    # La création des tables se fait via /api/setup (à appeler une seule fois).
     yield
 
 app = FastAPI(
@@ -245,4 +243,16 @@ async def health_check():
         "database_error": error_detail,
         "database_configured": bool(os.getenv("DATABASE_URL"))
     }
+
+@app.post("/api/setup")
+async def setup_database():
+    """
+    Crée les tables et insère les données de démonstration.
+    À appeler UNE SEULE FOIS après le premier déploiement Vercel.
+    """
+    try:
+        await init_db_and_seed()
+        return {"status": "ok", "message": "Base de données initialisée avec succès."}
+    except Exception as e:
+        return {"status": "error", "detail": f"{type(e).__name__}: {str(e)}"}
 
