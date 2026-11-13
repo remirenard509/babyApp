@@ -39,8 +39,11 @@ async def upload_file_to_storage(file_bytes: bytes, filename: str, content_type:
             raise e
 
     # Fallback local (Docker / local dev)
-    upload_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
+    upload_dir = "/tmp/uploads" if os.name != "nt" and not os.access(".", os.W_OK) else os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except OSError:
+        upload_dir = "/tmp"
     local_path = os.path.join(upload_dir, unique_name)
     with open(local_path, "wb") as f:
         f.write(file_bytes)

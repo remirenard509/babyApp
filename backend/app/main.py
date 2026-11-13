@@ -12,7 +12,11 @@ from .auth import get_password_hash
 from .routers import auth, profiles, offers, bookings, messages, reviews, admin
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    # Sur Vercel ou environnement Read-Only
+    pass
 
 async def init_db_and_seed():
     async with engine.begin() as conn:
@@ -210,8 +214,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Fichiers Statiques Uploads
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+# Fichiers Statiques Uploads (si le dossier existe)
+if os.path.exists(UPLOAD_DIR):
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Inclusion des 7 routeurs
 app.include_router(auth.router)

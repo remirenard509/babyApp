@@ -18,7 +18,10 @@ from ..storage import upload_file_to_storage
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError:
+    pass
 
 def calculate_age(birth_date: Optional[date]) -> Optional[int]:
     if not birth_date:
